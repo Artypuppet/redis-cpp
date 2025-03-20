@@ -44,6 +44,10 @@ void TCPServer::SetupServer() {
     if (epoll_ctl(epollfd, EPOLL_CTL_ADD, serverfd, &ev) != -1) throw TCPError(epollfd);
 }
 
+// TCPServer::EventLoop is the main event loop that listens for events on fds
+// registered with the epoll instance. It adds a new connection when an event
+// is triggered on the socket's fd otherwise handles the incoming write events
+// on a current TCP Connection.
 int TCPServer::EventLoop() {
     int i, nfds = 0;
     while(true) {
@@ -71,9 +75,28 @@ int TCPServer::EventLoop() {
     }
 }
 
+// TCPServer::addNewConnection accepts a new TCP connection, registers it with
+// the epoll instance and adds it to the map of TCP connections.
 void TCPServer::addNewConnection() {
+    // Accept the connection
     struct sockaddr_in clientAddr;
     int clientAddrLen = sizeof(clientAddr);
     int clientfd = accept(serverfd, (sockaddr*) &clientAddr, (socklen_t*) clientAddrLen);
     if(clientfd == -1) throw TCPError(-1);
+
+    // Make the connnection non blocking
+    if(fcntl(clientfd, F_SETFD, SOCK_NONBLOCK) == -1) throw TCPError(clientfd);
+
+    // Register the fd with the epoll instance
+    ev.events = EPOLLIN | EPOLLET;
+    ev.data.fd = clientfd;
+    if(epoll_ctl(epollfd, EPOLL_CTL_ADD, clientfd, &ev) == -1) throw TCPError(clientfd);
+
+    // Finally add the conection to the map
+    connections[clientfd] = TCPConnection(clientfd);
+}
+
+// TCPServer::handleEvent handles the read edge trigger events on a TCP connection
+void TCPServer::handleEvent(int _fd) {  
+    
 }
