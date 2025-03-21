@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <TCPConnection.h>
+#include <commands/Command.h>
 #include <unordered_map>
 #include <queue>
 
@@ -23,7 +24,7 @@ private:
     struct epoll_event ev, events[MAX_EVENTS];
     int serverfd, epollfd;
     std::unordered_map<int, TCPConnection> connections;
-    std::queue<std::string> commands;
+    std::queue<Command> commands;
 
     void addNewConnection();
     void handleEvent(int i);

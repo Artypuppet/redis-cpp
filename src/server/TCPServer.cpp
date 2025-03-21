@@ -4,12 +4,12 @@
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <sys/epoll.h>
 #include <spdlog/spdlog.h>
 #include <TCPConnection.h>
 #include <TCPServer.h>
 #include <common/Exceptions.h>
+#include <commands/Command.h>
 
 using std::string;
 
@@ -54,11 +54,6 @@ int TCPServer::EventLoop() {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, MAX_TIMEOUT);
         spdlog::debug("Epoll wait returned {} events", nfds);
         if (nfds < 0) throw TCPError(epollfd);
-        // No events, put the thread to sleep
-        if (!nfds) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_TIMEOUT));
-            continue;
-        }
 
         // Handle the events
         for(i = 0; i < nfds; i++) {
@@ -71,6 +66,13 @@ int TCPServer::EventLoop() {
             } else {
                 handleEvent(i);
             }
+        }
+
+        // Handle the commands.
+        while(!commands.empty()) {
+            Command cmd = std::move(commands.front());
+            commands.pop();
+            cmd.Run();
         }
     }
 }
@@ -110,6 +112,7 @@ void TCPServer::handleEvent(int i) {
                 spdlog::error("Error while reading from socket {}: {}", connfd, e.what());
             }
         } while(n != 0);
+        commands.emplace(connfd, connections[connfd].GetCommand());
     } 
     if (events[i].events & (EPOLLHUP | EPOLLHUP)) {
         try {
