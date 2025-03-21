@@ -69,7 +69,7 @@ int TCPServer::EventLoop() {
                     spdlog::error("Error while accepting a new TCP connection: {}", e.what());
                 }
             } else {
-                handleEvent(events[i].data.fd);
+                handleEvent(i);
             }
         }
     }
@@ -97,6 +97,27 @@ void TCPServer::addNewConnection() {
 }
 
 // TCPServer::handleEvent handles the read edge trigger events on a TCP connection
-void TCPServer::handleEvent(int _fd) {  
-    
+// or a connection hangup from the peer.
+void TCPServer::handleEvent(int i) {
+    int connfd = events[i].data.fd;
+    if(events[i].events & EPOLLIN) {
+        // Read until EOF is returned
+        ssize_t n = 0;
+        do {
+            try {
+                n = connections[connfd].Read();
+            } catch(TCPError& e) {
+                spdlog::error("Error while reading from socket {}: {}", connfd, e.what());
+            }
+        } while(n != 0);
+    } 
+    if (events[i].events & (EPOLLHUP | EPOLLHUP)) {
+        try {
+            // close() sys call will also remove the fd from the epoll instance.
+            connections[connfd].Close();
+        } catch(TCPError& e) {
+            spdlog::error("Error while closing socket {}: {}", connfd, e.what());
+        }
+        connections.erase(connfd);
+    }
 }

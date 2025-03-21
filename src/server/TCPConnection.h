@@ -1,3 +1,6 @@
+#ifndef TCPCONNECTION_H
+#define TCPCONNECTION_H
+
 #include <string>
 #include <sstream>
 
@@ -11,7 +14,8 @@
  */
 class TCPConnection {
 private:
-    int fd, readPos;
+    int fd;
+    ssize_t readPos;
     char buff[BUFF_SIZE];
     std::stringstream ss;
     // A variable to execute the command read.
@@ -20,6 +24,8 @@ public:
     TCPConnection(int _fd);
     ssize_t Read();
     int Write(std::string& msg);
-    int Close();
+    void Close();
     std::string GetCommand();
 };
+
+#endif TCPCONNECTION_H

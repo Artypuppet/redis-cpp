@@ -5,15 +5,16 @@
 
 using std::string;
 
-TCPConnection::TCPConnection() : fd(-1), readPos(-1) {};
+TCPConnection::TCPConnection() : fd(-1), readPos(0) {};
 
-TCPConnection::TCPConnection(int _fd) : fd(_fd), readPos(-1) {};
+TCPConnection::TCPConnection(int _fd) : fd(_fd), readPos(0) {};
 
 ssize_t TCPConnection::Read() {
     ssize_t n = read(fd, buff, BUFF_SIZE);
     if (n < 0) throw TCPError(fd);
     else if (n == 0) return n;
     ss << buff;
+    readPos += n;
     return n;
 }
 
@@ -23,7 +24,7 @@ int TCPConnection::Write(string& msg) {
     return n;
 }
 
-int TCPConnection::Close() {
+void TCPConnection::Close() {
     int result = close(fd);
     if (result < 0) throw TCPError(fd);
 }
