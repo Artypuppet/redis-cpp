@@ -5,14 +5,14 @@
 
 class Command {
 private:
-    int connfd;
     std::string cmd;
 
 public:
+    int connfd;
     Command();
     Command(int _fd, std::string _cmd);
     Command(Command&& other);
-    void Run();
+    std::string Run();
 };
 
 #endif

@@ -8,10 +8,10 @@ int main(int argc, char **argv)
     TCPServer server;
     try {
         server.SetupServer();
-        server.EventLoop();
     } catch(TCPError& e) {
-        spdlog::error("Error occurred while setup / event loop: {}", e.what());
+        spdlog::error("Error occurred while setuping up the server: {}", e.what());
     }
+    server.EventLoop();
     // {
     //     char buffer[1024] = {0};
     //     ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);

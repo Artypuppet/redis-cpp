@@ -22,8 +22,8 @@ private:
 public:
     TCPConnection();
     TCPConnection(int _fd);
-    ssize_t Read();
-    int Write(std::string& msg);
+    bool Read();
+    int Write(std::string msg);
     void Close();
     std::string GetCommand();
 };

@@ -10,16 +10,19 @@ TCPConnection::TCPConnection() : fd(-1), readPos(0) {};
 
 TCPConnection::TCPConnection(int _fd) : fd(_fd), readPos(0) {};
 
-ssize_t TCPConnection::Read() {
+bool TCPConnection::Read() {
     ssize_t n = read(fd, buff, BUFF_SIZE);
-    if (n < 0) throw TCPError(fd);
-    else if (n == 0) return n;
+    if (n < 0) {
+        if (errno & (EAGAIN | EWOULDBLOCK)) return false;
+        else throw TCPError(fd);
+    }
+    else if (n == 0) return false;
     ss << buff;
     readPos += n;
-    return n;
+    return true;
 }
 
-int TCPConnection::Write(string& msg) {
+int TCPConnection::Write(string msg) {
     ssize_t n = write(fd, msg.c_str(), msg.size());
     if (n < 0) throw TCPError(fd);
     return n;

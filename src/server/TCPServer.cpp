@@ -42,7 +42,7 @@ void TCPServer::SetupServer() {
     // for incoming connections.
     ev.events = EPOLLIN;
     ev.data.fd = serverfd;
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, serverfd, &ev) != -1) throw TCPError(epollfd);
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, serverfd, &ev) == -1) throw TCPError(epollfd);
 }
 
 // TCPServer::EventLoop is the main event loop that listens for events on fds
@@ -73,7 +73,7 @@ int TCPServer::EventLoop() {
         while(!commands.empty()) {
             Command cmd = std::move(commands.front());
             commands.pop();
-            cmd.Run();
+            connections[cmd.connfd].Write(cmd.Run());
         }
     }
 }
@@ -84,12 +84,16 @@ void TCPServer::addNewConnection() {
     // Accept the connection
     struct sockaddr_in clientAddr;
     int clientAddrLen = sizeof(clientAddr);
-    int clientfd = accept(serverfd, (sockaddr*) &clientAddr, (socklen_t*) clientAddrLen);
+    int clientfd = accept4(serverfd, (struct sockaddr*) &clientAddr, (socklen_t*) &clientAddrLen, SOCK_NONBLOCK);
     if(clientfd == -1) throw TCPError(-1);
 
-    // Make the connnection non blocking
-    if(fcntl(clientfd, F_SETFD, SOCK_NONBLOCK) == -1) throw TCPError(clientfd);
 
+    // Make the connnection non blocking
+    int flags = fcntl(clientfd, F_GETFL, 0);
+    if (flags == -1) throw TCPError(clientfd);
+    // Instead of using TCPError create a new exception or add an additional parameter to
+    // set the msg of what exactly went wrong. In this case O_NONBLOCK wasn't set.
+    if (!(flags & O_NONBLOCK)) throw TCPError(clientfd);
     // Register the fd with the epoll instance
     ev.events = EPOLLIN | EPOLLET;
     ev.data.fd = clientfd;
@@ -103,18 +107,7 @@ void TCPServer::addNewConnection() {
 // or a connection hangup from the peer.
 void TCPServer::handleEvent(int i) {
     int connfd = events[i].data.fd;
-    if(events[i].events & EPOLLIN) {
-        // Read until EOF is returned
-        ssize_t n = 0;
-        do {
-            try {
-                n = connections[connfd].Read();
-            } catch(TCPError& e) {
-                spdlog::error("Error while reading from socket {}: {}", connfd, e.what());
-            }
-        } while(n != 0);
-        commands.emplace(connfd, connections[connfd].GetCommand());
-    } 
+    // Handle connection termination and return immediately
     if (events[i].events & (EPOLLHUP | EPOLLHUP)) {
         try {
             // close() sys call will also remove the fd from the epoll instance.
@@ -123,5 +116,19 @@ void TCPServer::handleEvent(int i) {
             spdlog::error("Error while closing socket {}: {}", connfd, e.what());
         }
         connections.erase(connfd);
+        return;
+    }
+    if(events[i].events & EPOLLIN) {
+        // Read until EOF is returned
+        bool n = true;
+        do {
+            try {
+                n = connections[connfd].Read();
+            } catch(TCPError& e) {
+                spdlog::error("Error while reading from socket {}: {}", connfd, e.what());
+            }
+        } while(n);
+        // TODO: Add logs for requests
+        commands.emplace(connfd, connections[connfd].GetCommand());
     }
 }
