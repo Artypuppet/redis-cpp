@@ -1,5 +1,5 @@
 #ifndef COMMAND_H
-#define COMMAND_h
+#define COMMAND_H
 
 #include <string>
 
@@ -15,4 +15,4 @@ public:
     void Run();
 };
 
-#endif COMMAND_H
+#endif

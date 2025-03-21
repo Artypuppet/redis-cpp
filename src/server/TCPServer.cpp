@@ -5,11 +5,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/epoll.h>
+#include <sys/fcntl.h>
 #include <spdlog/spdlog.h>
-#include <TCPConnection.h>
-#include <TCPServer.h>
-#include <common/Exceptions.h>
-#include <commands/Command.h>
+#include "server/TCPConnection.h"
+#include "server/TCPServer.h"
+#include "common/Exceptions.h"
+#include "commands/Command.h"
 
 using std::string;
 
@@ -28,7 +29,7 @@ void TCPServer::SetupServer() {
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(6379);
+    server_addr.sin_port = htons(6379); // Setup on port 6379
 
     if (bind(serverfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) throw TCPError(serverfd);
     if (listen(serverfd, MAX_EVENTS) != 0) throw TCPError(serverfd);

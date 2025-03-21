@@ -28,4 +28,4 @@ public:
     std::string GetCommand();
 };
 
-#endif TCPCONNECTION_H
+#endif 

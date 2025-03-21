@@ -3,11 +3,13 @@
 
 #include <string>
 #include <sys/socket.h>
+#include <sys/epoll.h>
 #include <sys/types.h>
-#include <TCPConnection.h>
-#include <commands/Command.h>
 #include <unordered_map>
 #include <queue>
+
+#include "TCPConnection.h"
+#include "commands/Command.h"
 
 #define MAX_EVENTS 10000
 #define MAX_TIMEOUT 100 // The number of milliseconds a call to epoll_wait should block.
@@ -34,4 +36,4 @@ public:
     int EventLoop();
 };
 
-#endif TCPSERVER_H
+#endif
