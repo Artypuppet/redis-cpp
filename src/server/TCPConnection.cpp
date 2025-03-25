@@ -15,8 +15,10 @@ bool TCPConnection::Read() {
     if (n < 0) {
         if (errno & (EAGAIN | EWOULDBLOCK)) return false;
         else throw TCPError(fd);
-    }
-    else if (n == 0) return false;
+    } else if (n == 0) {
+        readPos = 0;
+        return false;
+    } 
     ss << buff;
     readPos += n;
     return true;
@@ -34,5 +36,8 @@ void TCPConnection::Close() {
 }
 
 string TCPConnection::GetCommand() {
-    return ss.str();
+    string cmd = ss.str();
+    ss.str("");
+    ss.clear();
+    return cmd;
 }

@@ -87,13 +87,14 @@ void TCPServer::addNewConnection() {
     int clientfd = accept4(serverfd, (struct sockaddr*) &clientAddr, (socklen_t*) &clientAddrLen, SOCK_NONBLOCK);
     if(clientfd == -1) throw TCPError(-1);
 
-
     // Make the connnection non blocking
     int flags = fcntl(clientfd, F_GETFL, 0);
     if (flags == -1) throw TCPError(clientfd);
+    
     // Instead of using TCPError create a new exception or add an additional parameter to
     // set the msg of what exactly went wrong. In this case O_NONBLOCK wasn't set.
-    if (!(flags & O_NONBLOCK)) throw TCPError(clientfd);
+    if (!(flags & O_NONBLOCK)) throw TCPError(clientfd, "unable to make the file descriptor non-blocking");
+
     // Register the fd with the epoll instance
     ev.events = EPOLLIN | EPOLLET;
     ev.data.fd = clientfd;
@@ -111,6 +112,7 @@ void TCPServer::handleEvent(int i) {
     if (events[i].events & (EPOLLHUP | EPOLLHUP)) {
         try {
             // close() sys call will also remove the fd from the epoll instance.
+            spdlog::debug("Got close event on connection {}: closing...", connfd);
             connections[connfd].Close();
         } catch(TCPError& e) {
             spdlog::error("Error while closing socket {}: {}", connfd, e.what());
@@ -124,11 +126,11 @@ void TCPServer::handleEvent(int i) {
         do {
             try {
                 n = connections[connfd].Read();
+                spdlog::debug("Reading {} bytes from connection {}", n, connfd);
             } catch(TCPError& e) {
                 spdlog::error("Error while reading from socket {}: {}", connfd, e.what());
             }
         } while(n);
-        // TODO: Add logs for requests
         commands.emplace(connfd, connections[connfd].GetCommand());
     }
 }
