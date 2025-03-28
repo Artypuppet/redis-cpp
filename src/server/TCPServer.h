@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <queue>
 
-#include "TCPConnection.h"
 #include "TCPContext.h"
 #include "commands/Command.h"
 

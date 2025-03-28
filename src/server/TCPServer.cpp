@@ -7,7 +7,7 @@
 #include <sys/epoll.h>
 #include <sys/fcntl.h>
 #include <spdlog/spdlog.h>
-#include "server/TCPConnection.h"
+
 #include "server/TCPServer.h"
 #include "common/Exceptions.h"
 #include "commands/Command.h"
