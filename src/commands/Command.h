@@ -6,6 +6,8 @@
 class Command {
 private:
     std::string cmd;
+    int pos;
+    
 
 public:
     int connfd;
@@ -13,6 +15,7 @@ public:
     Command(int _fd, std::string _cmd);
     Command(Command&& other);
     std::string Run();
+    
 };
 
 #endif

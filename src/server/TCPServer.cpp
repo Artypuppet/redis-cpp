@@ -55,6 +55,7 @@ int TCPServer::EventLoop() {
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, MAX_TIMEOUT);
         spdlog::debug("Epoll wait returned {} events", nfds);
         if (nfds < 0) throw TCPError(epollfd);
+        else if (nfds == 0) std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
         // Handle the events
         for(i = 0; i < nfds; i++) {
@@ -73,7 +74,7 @@ int TCPServer::EventLoop() {
         while(!commands.empty()) {
             Command cmd = std::move(commands.front());
             commands.pop();
-            connections[cmd.connfd].Write(cmd.Run());
+            contexts[cmd.connfd].Write(cmd.Run());
         }
     }
 }
@@ -101,36 +102,47 @@ void TCPServer::addNewConnection() {
     if(epoll_ctl(epollfd, EPOLL_CTL_ADD, clientfd, &ev) == -1) throw TCPError(clientfd);
 
     // Finally add the conection to the map
-    connections[clientfd] = TCPConnection(clientfd);
+    contexts.emplace(clientfd, clientfd);
 }
 
 // TCPServer::handleEvent handles the read edge trigger events on a TCP connection
 // or a connection hangup from the peer.
 void TCPServer::handleEvent(int i) {
     int connfd = events[i].data.fd;
+    TCPContext& ctx = contexts[connfd];
     // Handle connection termination and return immediately
     if (events[i].events & (EPOLLHUP | EPOLLHUP)) {
-        try {
-            // close() sys call will also remove the fd from the epoll instance.
-            spdlog::debug("Got close event on connection {}: closing...", connfd);
-            connections[connfd].Close();
-        } catch(TCPError& e) {
-            spdlog::error("Error while closing socket {}: {}", connfd, e.what());
-        }
-        connections.erase(connfd);
+        closeConn(ctx, connfd);
         return;
     }
     if(events[i].events & EPOLLIN) {
-        // Read until EOF is returned
-        bool n = true;
+        // Read until EOF or if EWOULDBLOCK or EAGAIN is returned
+        ssize_t n = 0;
         do {
             try {
-                n = connections[connfd].Read();
+                n = ctx.Read();
                 spdlog::debug("Reading {} bytes from connection {}", n, connfd);
             } catch(TCPError& e) {
                 spdlog::error("Error while reading from socket {}: {}", connfd, e.what());
             }
-        } while(n);
-        commands.emplace(connfd, connections[connfd].GetCommand());
+        } while(n > 0);
+        if(ctx.GetReadPos() > 0) {
+            commands.emplace(connfd, contexts[connfd].GetCommand());
+        } else if (ctx.GetReadPos() == 0) {
+            // Read until EOF, close the connection
+            closeConn(ctx, connfd);
+        }
     }
+}
+
+
+void TCPServer::closeConn(TCPContext& ctx, int connfd) {
+    try {
+        // close() sys call will also remove the fd from the epoll instance.
+        spdlog::debug("Got close event on connection {}: closing...", connfd);
+        ctx.Close();
+    } catch(TCPError& e) {
+        spdlog::error("Error while closing socket {}: {}", connfd, e.what());
+    }
+    contexts.erase(connfd);
 }

@@ -9,6 +9,7 @@
 #include <queue>
 
 #include "TCPConnection.h"
+#include "TCPContext.h"
 #include "commands/Command.h"
 
 #define MAX_EVENTS 10000
@@ -25,11 +26,12 @@ class TCPServer {
 private:
     struct epoll_event ev, events[MAX_EVENTS];
     int serverfd, epollfd;
-    std::unordered_map<int, TCPConnection> connections;
+    std::unordered_map<int, TCPContext> contexts;
     std::queue<Command> commands;
 
     void addNewConnection();
     void handleEvent(int i);
+    void closeConn(TCPContext& ctx, int connfd);
 public:
     TCPServer();
     void SetupServer();
